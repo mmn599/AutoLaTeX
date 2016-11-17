@@ -1,5 +1,5 @@
-import processing
+import preprocessing as pp
 
-def predict(data, clf, dtype="Default"):
-    data = processing.preprocess(data, dtype)
+def predict(data, clf, dtype="APP"):
+    data = pp.preprocess(data, dtype)
     return clf.predict(data) 

@@ -71,7 +71,6 @@ def _inkml_to_image(inkml_file):
 def _size_normalize(images):
     norm_images = np.zeros((images.shape[0], NIS[0], NIS[1]))
     for i, image in enumerate(images):
-        print(image.shape)
         norm_image = transform.resize(image, NIS)
         norm_images[i, :, :] = norm_image
     return norm_images
@@ -93,19 +92,27 @@ def _pp_minist(data):
     return _pp_common(images)
 
 
+def _pp_app(data):
+    if(len(data.shape) == 2):
+        data = np.expand_dims(data, axis=0)
+    data = 1 - data
+    return _pp_common(data)
+
+
 ######################################
 # API
 ######################################
 
 # Normalized image shape
-NIS = (36, 36)
+NIS = (28, 28)
 PROCESSING_FUNC = {
     'MINIST': _pp_minist,
-    'CHORME': _pp_chorme
+    'CHORME': _pp_chorme,
+    'APP': _pp_app
 }
 
 
-def preprocess(data, dtype="MINIST"):
+def preprocess(data, dtype):
     if(dtype not in PROCESSING_FUNC):
         raise Exception("Fuck you!")
     func = PROCESSING_FUNC[dtype]
@@ -119,7 +126,5 @@ def image_to_input(image):
 
 
 def input_to_image(X):
-    if(len(X.shape) == 2):
-        X = np.exp(X, axis=0)
-    return np.reshape(X, (X.shape[0], NIS[0], NIS[1]))
+    return np.reshape(X, (NIS[0], NIS[1]))
 

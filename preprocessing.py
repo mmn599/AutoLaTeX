@@ -1,13 +1,7 @@
-import glob
 import numpy as np
 from io import StringIO
 import xml.etree.ElementTree as ET
-import os
-from tqdm import tqdm
 from skimage import transform
-from sklearn.neural_network import MLPClassifier
-import csv
-from sklearn.externals import joblib
 
 
 def _normalize_coordinates(coords, maintain_ar = False):
@@ -95,7 +89,6 @@ def _pp_minist(data):
 def _pp_app(data):
     if(len(data.shape) == 2):
         data = np.expand_dims(data, axis=0)
-    data = 1 - data
     return _pp_common(data)
 
 

@@ -8,6 +8,11 @@ def predict(data, clf, dtype="APP"):
     data = pp.preprocess(data, dtype)
     return clf.predict(data)
 
+
+def prediction_to_latex(prediction):
+	return "\\int a^2dx"
+
+
 if __name__ == "__main__":
 	fn = sys.argv[1]
 	clfloc = sys.argv[2]
@@ -15,5 +20,6 @@ if __name__ == "__main__":
 	scriptdir = os.getcwd()
 	clf = joblib.load(clfloc)
 	prediction = predict(data, clf, dtype="APP")
-	print(prediction)
+	latex = prediction_to_latex(prediction)
+	sys.stdout.write(latex)
 

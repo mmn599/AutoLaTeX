@@ -8,8 +8,7 @@ import numpy as np
 import warnings
 from skimage import filters
 import glob
-from skimage import feature
-from scipy import ndimage as ndi
+from skimage import measure
 warnings.filterwarnings("ignore")
 
 DEFAULT_IMAGE_SIZE = (28,28)
@@ -37,7 +36,7 @@ LATEX_BOOK = {
     '9' : '9',
     'plus' : '+',
     'minus' : '-',
-    'int' : '\\int',
+    'int' : '\\int ',
     'leftparen' : '(',
     'rightparen' : ')'
 }
@@ -101,15 +100,14 @@ def overall_to_symbols(overall_image):
     Returns all squared, grayed, symbols
     '''
     overall_image = color.rgb2gray(overall_image)
-    o_image = overall_image.copy()
-    o_image[overall_image < 1] = 1
-    o_image[overall_image == 1] = 0
-    edges = feature.canny(o_image)
-    fill_edges = ndi.binary_fill_holes(edges)
-    label_objects, nb_labels = ndi.label(fill_edges)
+    ithresh = overall_image.copy()
+    ithresh[overall_image < 1] = 1
+    ithresh[overall_image == 1] = 0
+    ithresh = morphology.closing(ithresh, morphology.disk(5))
+    ilabels = measure.label(ithresh, background=0)
     symbols = []
-    for label in range (1, nb_labels+1):
-        rowmin, rowmax, colmin, colmax = find_label(label_objects, label)
+    for label in range (1, np.max(ilabels)+1):
+        rowmin, rowmax, colmin, colmax = find_label(ilabels, label)
         isymbol = overall_image[rowmin:rowmax+1,colmin:colmax+1]
         symbols.append((colmin, isymbol))
     sorted_by_colmin = sorted(symbols, key=lambda tup: tup[0])
@@ -120,7 +118,6 @@ def overall_to_symbols(overall_image):
         ss = square_image(symbol)
         square_symbols.append(ss)
     return np.array(square_symbols)
-
 
 def predict(image_overall, clf, ft):
     images = overall_to_symbols(image_overall)
@@ -174,5 +171,6 @@ if __name__ == "__main__":
     ft = joblib.load(ftloc)
     prediction = predict(image_overall, clf, ft)
     latex = prediction_to_latex(prediction)
+    sys.stdout.flush()
     sys.stdout.write(latex)
 

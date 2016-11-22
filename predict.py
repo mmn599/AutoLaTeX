@@ -69,16 +69,23 @@ def preprocess(image, image_size, ft):
     return image, image_input
 
 
-def find_label(image, label):
-    image_th = image.copy()
-    image_th[image == label] = 1
-    image_th[image != label] = 0
-    nz = np.nonzero(image_th)
+def find_symbol(image):
+    '''
+    Assumes background of 0 and objects closer to 1
+    '''
+    nz = np.nonzero(image)
     rowmin = np.min(nz[0])
     rowmax = np.max(nz[0])
     colmin = np.min(nz[1])
     colmax = np.max(nz[1])
     return rowmin, rowmax, colmin, colmax
+
+
+def find_label(image, label):
+    image_th = image.copy()
+    image_th[image == label] = 1
+    image_th[image != label] = 0
+    return find_symbol(image_th)
 
 
 def square_image(image):
@@ -109,6 +116,8 @@ def overall_to_symbols(overall_image):
     for label in range (1, np.max(ilabels)+1):
         rowmin, rowmax, colmin, colmax = find_label(ilabels, label)
         isymbol = overall_image[rowmin:rowmax+1,colmin:colmax+1]
+        srowmin, srowmax, scolmin, scolmax = find_symbol(1 - isymbol)
+        isymbol = isymbol[srowmin:srowmax + 1, scolmin:scolmax+1]
         symbols.append((colmin, isymbol))
     sorted_by_colmin = sorted(symbols, key=lambda tup: tup[0])
     symbols = [el[1] for el in sorted_by_colmin]
@@ -119,10 +128,10 @@ def overall_to_symbols(overall_image):
         square_symbols.append(ss)
     return np.array(square_symbols)
 
-def predict(image_overall, clf, ft):
-    images = overall_to_symbols(image_overall)
+
+def predict(irawsymbols, clf, ft):
     X = []
-    for i, image in enumerate(images):
+    for i, image in enumerate(irawsymbols):
         image, image_input = preprocess(image, DEFAULT_IMAGE_SIZE, ft)
         X.append(image_input)
     X = np.array(X)
@@ -139,37 +148,45 @@ def prediction_to_latex(predictions):
     return latex
 
 
+def file_to_raw_symbols(fn, single_symbol=False):
+    ioverall = io.imread(fn)
+    try:
+        irawsymbols = overall_to_symbols(ioverall)
+    except:
+        raise Exception(fn) 
+    if(single_symbol and len(irawsymbols) != 1):
+        raise Exception(fn)
+    return irawsymbols
+     
+
 def get_custom_data(datadir, n_image_size=None):
-    images = []
-    symbols = []
+    y = []
+    X = []
+    processed_images = []
+    original_images = []
 
     for name in glob.glob(datadir + '*.png'):
         symbol = name.split('_')[1].replace(".png","")
-        image = io.imread(name)
-        images.append(image)
-        symbols.append(symbol)
-
-    images = np.array(images)
-
-    X = []
-    X_images = []
-    for image in images:
-        image, image_input = preprocess(image, n_image_size, None)
+        irawsymbols = file_to_raw_symbols(name, (28,28), True)
+        iprocessed, image_input = preprocess(irawsymbols[0], None)
+        processed_images.append(iprocessed)
+        original_images.append(irawsymbols[0])
         X.append(image_input)
-        X_images.append(image)
+        y.append(symbol)
+
     X = np.array(X)
     X = np.squeeze(X)
         
-    return X_images, X, symbols, n_image_size
+    return X, y, processed_images, original_images
 
 if __name__ == "__main__":
     imagefn = sys.argv[1]
     clfloc = sys.argv[2]
     ftloc = sys.argv[3]
-    image_overall = io.imread(imagefn)
     clf = joblib.load(clfloc)
     ft = joblib.load(ftloc)
-    prediction = predict(image_overall, clf, ft)
+    irawsymbols = file_to_raw_symbols(imagefn)
+    prediction = predict(irawsymbols, clf, ft)
     latex = prediction_to_latex(prediction)
     sys.stdout.flush()
     sys.stdout.write(latex)

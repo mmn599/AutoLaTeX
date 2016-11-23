@@ -10,6 +10,7 @@ from skimage import filters
 import glob
 from skimage import measure
 from matplotlib import pyplot as plt
+import os
 warnings.filterwarnings("ignore")
 
 DEFAULT_IMAGE_SIZE = (28,28)
@@ -157,14 +158,17 @@ def overall_to_symbols(overall_image):
 
 def predict(irawsymbols, clf, ft):
     X = []
-    for i, image in enumerate(irawsymbols):
-        image, image_input = preprocess(image, DEFAULT_IMAGE_SIZE, ft)
+    images_processed = []
+    for iraw in irawsymbols:
+        iprocessed, image_input = preprocess(iraw, DEFAULT_IMAGE_SIZE, ft)
         X.append(image_input)
+        images_processed.append(iprocessed)
     X = np.array(X)
     X = np.squeeze(X)
     if(len(X.shape)==1):
         X = np.expand_dims(X, axis=0)
-    return list(clf.predict(X))
+    ypred = clf.predict(X)
+    return images_processed, X, ypred
 
 
 def prediction_to_latex(predictions):
@@ -205,15 +209,27 @@ def get_custom_data(datadir, n_image_size):
         
     return X, y, processed_images, original_images
 
+FN_ILABELS = "current_ilabels.png"
+
 if __name__ == "__main__":
     imagefn = sys.argv[1]
     clfloc = sys.argv[2]
     ftloc = sys.argv[3]
+
     clf = joblib.load(clfloc)
     ft = joblib.load(ftloc)
-    irawsymbols = file_to_raw_symbols(imagefn)
-    prediction = predict(irawsymbols, clf, ft)
-    latex = prediction_to_latex(prediction)
-    sys.stdout.flush()
+
+    ilabels, irawsymbols = file_to_raw_symbols(imagefn)
+    images_processed, X, ypred = predict(irawsymbols, clf, ft)
+    latex = prediction_to_latex(ypred)
+
+    cwd = os.getcwd()
+    fn_ilabels = cwd + "/" + FN_ILABELS
+    io.imsave(fn_ilabels, ilabels)
+
     sys.stdout.write(latex)
+    sys.stdout.write('\n')
+    sys.stdout.write(fn_ilabels)
+    sys.stdout.write('\n')
+    sys.stdout.flush()
 

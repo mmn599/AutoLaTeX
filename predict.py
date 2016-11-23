@@ -9,6 +9,7 @@ import warnings
 from skimage import filters
 import glob
 from skimage import measure
+from matplotlib import pyplot as plt
 warnings.filterwarnings("ignore")
 
 DEFAULT_IMAGE_SIZE = (28,28)
@@ -81,11 +82,11 @@ def find_symbol(image):
     return rowmin, rowmax, colmin, colmax
 
 
-def find_label(image, label):
+def thresh_label(image, label):
     image_th = image.copy()
     image_th[image == label] = 1
     image_th[image != label] = 0
-    return find_symbol(image_th)
+    return image_th
 
 
 def square_image(image):
@@ -102,6 +103,15 @@ def square_image(image):
     return newimage
 
 
+def find_closest(ilabels, smalllabel):
+    ithresh = thresh_label(ilabels, smalllabel)
+    rowmin, rowmax, colmin, colmax = find_symbol(ithresh)
+    iselect = ilabels[rowmax:ilabels.shape[0],colmin - 10 : colmax + 10] 
+    iselect[iselect == smalllabel] = 0
+    newlabel = np.max(iselect)
+    return newlabel
+
+
 def overall_to_symbols(overall_image):
     '''
     Returns all squared, grayed, symbols
@@ -113,8 +123,24 @@ def overall_to_symbols(overall_image):
     ithresh = morphology.closing(ithresh, morphology.disk(5))
     ilabels = measure.label(ithresh, background=0)
     symbols = []
-    for label in range (1, np.max(ilabels)+1):
-        rowmin, rowmax, colmin, colmax = find_label(ilabels, label)
+    labels = []
+
+    # Find the large labels
+    for label in range(1, np.max(ilabels)+1):
+        label_th = thresh_label(ilabels, label)
+        count = np.count_nonzero(label_th)
+        if(count > 50):
+            labels.append(label)
+        else:
+            newlabel = find_closest(ilabels, label)
+            ilabels[ilabels == label] = newlabel
+
+    if(len(labels) == 0):
+        raise Exception('Bad image!')
+
+    for label in labels:
+        label_th = thresh_label(ilabels, label)
+        rowmin, rowmax, colmin, colmax = find_symbol(label_th)
         isymbol = overall_image[rowmin:rowmax+1,colmin:colmax+1]
         srowmin, srowmax, scolmin, scolmax = find_symbol(1 - isymbol)
         isymbol = isymbol[srowmin:srowmax + 1, scolmin:scolmax+1]
@@ -159,7 +185,7 @@ def file_to_raw_symbols(fn, single_symbol=False):
     return irawsymbols
      
 
-def get_custom_data(datadir, n_image_size=None):
+def get_custom_data(datadir, n_image_size):
     y = []
     X = []
     processed_images = []
@@ -167,8 +193,8 @@ def get_custom_data(datadir, n_image_size=None):
 
     for name in glob.glob(datadir + '*.png'):
         symbol = name.split('_')[1].replace(".png","")
-        irawsymbols = file_to_raw_symbols(name, (28,28), True)
-        iprocessed, image_input = preprocess(irawsymbols[0], None)
+        irawsymbols = file_to_raw_symbols(name, True)
+        iprocessed, image_input = preprocess(irawsymbols[0], n_image_size, None)
         processed_images.append(iprocessed)
         original_images.append(irawsymbols[0])
         X.append(image_input)

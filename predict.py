@@ -113,7 +113,7 @@ def find_closest(ilabels, smalllabel):
     return newlabel
 
 
-def overall_to_symbols(overall_image):
+def seperate_symbols(overall_image):
     '''
     Returns all squared, grayed, symbols
     '''
@@ -153,7 +153,7 @@ def overall_to_symbols(overall_image):
     for symbol in symbols:
         ss = square_image(symbol)
         square_symbols.append(ss)
-    return np.array(square_symbols)
+    return ilabels, np.array(square_symbols)
 
 
 def predict(irawsymbols, clf, ft):
@@ -181,7 +181,7 @@ def prediction_to_latex(predictions):
 def file_to_raw_symbols(fn, single_symbol=False):
     ioverall = io.imread(fn)
     try:
-        irawsymbols = overall_to_symbols(ioverall)
+        irawsymbols = seperate_symbols(ioverall)
     except:
         raise Exception(fn) 
     if(single_symbol and len(irawsymbols) != 1):

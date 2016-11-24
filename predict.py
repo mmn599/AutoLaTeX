@@ -40,7 +40,10 @@ LATEX_BOOK = {
     'minus' : '-',
     'int' : '\\int ',
     'leftparen' : '(',
-    'rightparen' : ')'
+    'rightparen' : ')',
+    'sum':'\\sum ',
+    'v' : 'v',
+    'ww' : 'W'
 }
 
 def find_average_size(images):
@@ -55,33 +58,8 @@ def find_average_size(images):
     n = np.ceil(np.mean(Ns))
     return (m, n)
 
-
-def pre_v4(image):
-    image_size = (50, 50)
-    image = filters.rank.mean(image, morphology.disk(1))
-    image = filters.gaussian(image, sigma=.5)
-    image = resize(image, image_size)
-    ibin = image.copy()
-    ibin[image < 1] = 1
-    ibin[image == 1] = 0
-    return ibin
-
-
-def pre_v3(image):
-    image_size = (50, 50)
-    image = filters.rank.mean(image, morphology.disk(3))
-    image = resize(image, image_size)
-    return image
-
-
-def pre_v2(image):
-    image_size = (50, 50)
-    image = resize(image, image_size)
-    return image
-
-
 def pre_v1(image):
-    image_size = (36, 36)
+    image_size = (50, 50)
     image = filters.rank.mean(image, morphology.disk(3))
     image = resize(image, image_size)
     return image
@@ -96,12 +74,6 @@ def preprocess(iraw, version=1, ft=None):
     version = int(version)
     if(version==1):
         iprocessed = pre_v1(iraw)
-    elif(version==2):
-        iprocessed = pre_v2(iraw)
-    elif(version==3):
-        iprocessed = pre_v3(iraw)
-    elif(version==4):
-        iprocessed = pre_v4(iraw)
     else:
         raise Exception('Wrong version: ' + str(version))
     image_input = iprocessed.flatten()
@@ -239,7 +211,7 @@ def get_custom_data(datadir, version):
 
     for name in glob.glob(datadir + '*.png'):
         symbol = name.split('_')[1].replace(".png","")
-        irawsymbols = file_to_raw_symbols(name, True)
+        ilabels, irawsymbols = file_to_raw_symbols(name, True)
         iprocessed, image_input = preprocess(irawsymbols[0], version, None)
         processed_images.append(iprocessed)
         original_images.append(irawsymbols[0])

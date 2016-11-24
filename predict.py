@@ -13,7 +13,7 @@ from matplotlib import pyplot as plt
 import os
 warnings.filterwarnings("ignore")
 
-DEFAULT_IMAGE_SIZE = (28,28)
+DEFAULT_IMAGE_SIZE = (36,36)
 LATEX_BOOK = {
     'a' : 'a',
     'b' : 'b',
@@ -121,7 +121,7 @@ def seperate_symbols(overall_image):
     ithresh = overall_image.copy()
     ithresh[overall_image < 1] = 1
     ithresh[overall_image == 1] = 0
-    ithresh = morphology.closing(ithresh, morphology.disk(5))
+    ithresh = morphology.closing(ithresh, morphology.disk(3))
     ilabels = measure.label(ithresh, background=0)
     symbols = []
     labels = []
@@ -146,6 +146,7 @@ def seperate_symbols(overall_image):
         srowmin, srowmax, scolmin, scolmax = find_symbol(1 - isymbol)
         isymbol = isymbol[srowmin:srowmax + 1, scolmin:scolmax+1]
         symbols.append((colmin, isymbol))
+
     sorted_by_colmin = sorted(symbols, key=lambda tup: tup[0])
     symbols = [el[1] for el in sorted_by_colmin]
     symbols = np.array(symbols)
@@ -209,27 +210,36 @@ def get_custom_data(datadir, n_image_size):
         
     return X, y, processed_images, original_images
 
-FN_ILABELS = "current_ilabels.png"
+FN_ILABELS = "current_ilabels"
+
+
+def do_the_damn_thing(fnimage, fnclf, fnft, count):
+    clf = joblib.load(fnclf)
+    ft = joblib.load(fnft)
+
+    ilabels, irawsymbols = file_to_raw_symbols(fnimage)
+    images_processed, X, ypred = predict(irawsymbols, clf, ft)
+    latex = prediction_to_latex(ypred)
+
+    cwd = os.getcwd()
+    fn_ilabels = cwd + "/" + FN_ILABELS + count + ".png"
+    plt.imsave(fn_ilabels, ilabels)
+
+    return latex, fn_ilabels, irawsymbols
+
 
 if __name__ == "__main__":
     imagefn = sys.argv[1]
     clfloc = sys.argv[2]
     ftloc = sys.argv[3]
-
-    clf = joblib.load(clfloc)
-    ft = joblib.load(ftloc)
-
-    ilabels, irawsymbols = file_to_raw_symbols(imagefn)
-    images_processed, X, ypred = predict(irawsymbols, clf, ft)
-    latex = prediction_to_latex(ypred)
-
-    cwd = os.getcwd()
-    fn_ilabels = cwd + "/" + FN_ILABELS
-    io.imsave(fn_ilabels, ilabels)
-
+    count = sys.argv[4]
+    latex, fn_ilabels, irawsymbols = do_the_damn_thing(imagefn, clfloc, ftloc, count)
+    numsymbols = len(irawsymbols)
     sys.stdout.write(latex)
     sys.stdout.write('\n')
     sys.stdout.write(fn_ilabels)
+    sys.stdout.write('\n')
+    sys.stdout.write(str(numsymbols))
     sys.stdout.write('\n')
     sys.stdout.flush()
 

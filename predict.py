@@ -256,6 +256,7 @@ FN_ISYMBOL = "current_symbol"
 
 def do_the_damn_thing(fnimage, version, count):
     dirme = os.path.dirname(os.path.realpath(__file__))
+    dirtemp = dirme + "/" + "temp"
     dirmodels = dirme + '/models/'
     fnclf = dirmodels + 'Model' + str(version) + '.p'
     fnts = dirmodels + 'Ts' + str(version) + '.p'
@@ -266,12 +267,12 @@ def do_the_damn_thing(fnimage, version, count):
     images_processed, X, ypred = predict(irawsymbols, clf, ts, version=version)
     latex = prediction_to_latex(ypred)
 
-    fn_ilabels = dirme + "/" + FN_ILABELS + count + ".png"
+    fn_ilabels = dirtemp + "/" + FN_ILABELS + count + ".png"
     plt.imsave(fn_ilabels, ilabels)
 
     fns_ips = []
     for i, iprocessedsymbol in enumerate(images_processed):
-        fn_ips = dirme + "/" + FN_ISYMBOL + count + "_" + str(i) + ".png"
+        fn_ips = dirtemp + "/" + FN_ISYMBOL + count + "_" + str(i) + ".png"
         plt.imsave(fn_ips, iprocessedsymbol, cmap="Greys_r")
         fns_ips.append(fn_ips)
 

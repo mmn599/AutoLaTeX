@@ -56,19 +56,60 @@ def find_average_size(images):
     return (m, n)
 
 
-def preprocess(image, image_size, ft):
+def pre_v4(image):
+    image_size = (50, 50)
+    image = filters.rank.mean(image, morphology.disk(1))
+    image = filters.gaussian(image, sigma=.5)
+    image = resize(image, image_size)
+    ibin = image.copy()
+    ibin[image < 1] = 1
+    ibin[image == 1] = 0
+    return ibin
+
+
+def pre_v3(image):
+    image_size = (50, 50)
+    image = filters.rank.mean(image, morphology.disk(3))
+    image = resize(image, image_size)
+    return image
+
+
+def pre_v2(image):
+    image_size = (50, 50)
+    image = resize(image, image_size)
+    return image
+
+
+def pre_v1(image):
+    image_size = (36, 36)
+    image = filters.rank.mean(image, morphology.disk(3))
+    image = resize(image, image_size)
+    return image
+
+
+def preprocess(iraw, version=1, ft=None):
     '''
     Converts images (grayed, squared symbol images) into data for learning model
     '''
-    image = morphology.erosion(image, morphology.square(5))
-    image = filters.rank.median(image, morphology.square(3))
-    image = resize(image, image_size)
-    image_input = image.flatten()
+    # image = morphology.erosion(image, morphology.square(5))
+    # image = filters.rank.median(image, morphology.square(3))
+    version = int(version)
+    if(version==1):
+        iprocessed = pre_v1(iraw)
+    elif(version==2):
+        iprocessed = pre_v2(iraw)
+    elif(version==3):
+        iprocessed = pre_v3(iraw)
+    elif(version==4):
+        iprocessed = pre_v4(iraw)
+    else:
+        raise Exception('Wrong version: ' + str(version))
+    image_input = iprocessed.flatten()
     if(len(image_input.shape)==1):
         image_input = np.expand_dims(image_input, axis=0)
     if(ft):
         image_input = ft.transform(image_input)
-    return image, image_input
+    return iprocessed, image_input
 
 
 def find_symbol(image):
@@ -121,7 +162,7 @@ def seperate_symbols(overall_image):
     ithresh = overall_image.copy()
     ithresh[overall_image < 1] = 1
     ithresh[overall_image == 1] = 0
-    ithresh = morphology.closing(ithresh, morphology.disk(3))
+    ithresh = morphology.closing(ithresh, morphology.disk(5))
     ilabels = measure.label(ithresh, background=0)
     symbols = []
     labels = []
@@ -157,11 +198,11 @@ def seperate_symbols(overall_image):
     return ilabels, np.array(square_symbols)
 
 
-def predict(irawsymbols, clf, ft):
+def predict(irawsymbols, clf, ft, version):
     X = []
     images_processed = []
     for iraw in irawsymbols:
-        iprocessed, image_input = preprocess(iraw, DEFAULT_IMAGE_SIZE, ft)
+        iprocessed, image_input = preprocess(iraw, version, ft)
         X.append(image_input)
         images_processed.append(iprocessed)
     X = np.array(X)
@@ -182,15 +223,15 @@ def prediction_to_latex(predictions):
 def file_to_raw_symbols(fn, single_symbol=False):
     ioverall = io.imread(fn)
     try:
-        irawsymbols = seperate_symbols(ioverall)
+        ilabels, irawsymbols = seperate_symbols(ioverall)
     except:
         raise Exception(fn) 
     if(single_symbol and len(irawsymbols) != 1):
         raise Exception(fn)
-    return irawsymbols
+    return ilabels, irawsymbols
      
 
-def get_custom_data(datadir, n_image_size):
+def get_custom_data(datadir, version):
     y = []
     X = []
     processed_images = []
@@ -199,7 +240,7 @@ def get_custom_data(datadir, n_image_size):
     for name in glob.glob(datadir + '*.png'):
         symbol = name.split('_')[1].replace(".png","")
         irawsymbols = file_to_raw_symbols(name, True)
-        iprocessed, image_input = preprocess(irawsymbols[0], n_image_size, None)
+        iprocessed, image_input = preprocess(irawsymbols[0], version, None)
         processed_images.append(iprocessed)
         original_images.append(irawsymbols[0])
         X.append(image_input)
@@ -211,35 +252,48 @@ def get_custom_data(datadir, n_image_size):
     return X, y, processed_images, original_images
 
 FN_ILABELS = "current_ilabels"
+FN_ISYMBOL = "current_symbol"
 
-
-def do_the_damn_thing(fnimage, fnclf, fnft, count):
+def do_the_damn_thing(fnimage, version, count):
+    dirme = os.path.dirname(os.path.realpath(__file__))
+    dirmodels = dirme + '/models/'
+    fnclf = dirmodels + 'Model' + str(version) + '.p'
+    fnts = dirmodels + 'Ts' + str(version) + '.p'
     clf = joblib.load(fnclf)
-    ft = joblib.load(fnft)
+    ts = joblib.load(fnts)
 
     ilabels, irawsymbols = file_to_raw_symbols(fnimage)
-    images_processed, X, ypred = predict(irawsymbols, clf, ft)
+    images_processed, X, ypred = predict(irawsymbols, clf, ts, version=version)
     latex = prediction_to_latex(ypred)
 
-    cwd = os.getcwd()
-    fn_ilabels = cwd + "/" + FN_ILABELS + count + ".png"
+    fn_ilabels = dirme + "/" + FN_ILABELS + count + ".png"
     plt.imsave(fn_ilabels, ilabels)
 
-    return latex, fn_ilabels, irawsymbols
+    fns_ips = []
+    for i, iprocessedsymbol in enumerate(images_processed):
+        fn_ips = dirme + "/" + FN_ISYMBOL + count + "_" + str(i) + ".png"
+        plt.imsave(fn_ips, iprocessedsymbol)
+        fns_ips.append(fn_ips)
+
+    return latex, fn_ilabels, fns_ips, irawsymbols, images_processed, 
 
 
 if __name__ == "__main__":
     imagefn = sys.argv[1]
-    clfloc = sys.argv[2]
-    ftloc = sys.argv[3]
-    count = sys.argv[4]
-    latex, fn_ilabels, irawsymbols = do_the_damn_thing(imagefn, clfloc, ftloc, count)
-    numsymbols = len(irawsymbols)
+    version = sys.argv[2]
+    count = sys.argv[3]
+
+    latex, fn_ilabels, fns_ips, irawsymbols, images_processed = do_the_damn_thing(imagefn, version, count)
+    numsymbols = len(fns_ips)
+
     sys.stdout.write(latex)
     sys.stdout.write('\n')
     sys.stdout.write(fn_ilabels)
     sys.stdout.write('\n')
     sys.stdout.write(str(numsymbols))
     sys.stdout.write('\n')
+    for fn in fns_ips:
+        sys.stdout.write(fn)
+        sys.stdout.write('\n')
     sys.stdout.flush()
 

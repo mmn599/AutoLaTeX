@@ -272,7 +272,7 @@ def do_the_damn_thing(fnimage, version, count):
     fns_ips = []
     for i, iprocessedsymbol in enumerate(images_processed):
         fn_ips = dirme + "/" + FN_ISYMBOL + count + "_" + str(i) + ".png"
-        plt.imsave(fn_ips, iprocessedsymbol)
+        plt.imsave(fn_ips, iprocessedsymbol, cmap="Greys_r")
         fns_ips.append(fn_ips)
 
     return latex, fn_ilabels, fns_ips, irawsymbols, images_processed, 

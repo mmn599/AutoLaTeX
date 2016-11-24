@@ -1,3 +1,4 @@
 .ipynb_checkpoints/
 data/
 pickle_files/
+*.png

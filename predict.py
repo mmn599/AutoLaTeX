@@ -230,9 +230,7 @@ def file_to_raw_symbols(fn, single_symbol=False):
 def get_custom_data(datadir, version):
     y = []
     X = []
-    Xhog = []
     processed_images = []
-    processed_hog_images = []
     original_images = []
 
     for name in glob.glob(datadir + '*.png'):

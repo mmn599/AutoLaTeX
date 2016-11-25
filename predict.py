@@ -63,7 +63,7 @@ def find_average_size(images):
     return (m, n)
 
 
-DEFAULT_IMAGE_SIZE = (36,36)
+DEFAULT_IMAGE_SIZE = (50,50)
 def preprocess_image(iraw, ft=None, fthog=None):
     '''
     Converts images (grayed, squared symbol images) into data for learning model

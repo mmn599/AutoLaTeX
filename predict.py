@@ -9,6 +9,7 @@ import warnings
 from skimage import filters
 import glob
 from skimage import measure
+from skimage import feature
 from matplotlib import pyplot as plt
 import os
 warnings.filterwarnings("ignore")
@@ -43,7 +44,11 @@ LATEX_BOOK = {
     'rightparen' : ')',
     'sum':'\\sum ',
     'v' : 'v',
-    'ww' : 'W'
+    'ww' : 'W',
+    'divslash' : '/',
+    'u' : 'u',
+    'ii' : 'I',
+    'comma' : ','
 }
 
 def find_average_size(images):
@@ -57,6 +62,21 @@ def find_average_size(images):
     m = np.ceil(np.mean(Ms))
     n = np.ceil(np.mean(Ns))
     return (m, n)
+
+def pre_v3(image):
+    image_size = (50, 50)
+    image = resize(image, image_size)
+    fd, hog_image = feature.hog(image, visualise=True)
+    return hog_image
+
+
+def pre_v2(image):
+    image_size = (50, 50)
+    image = filters.rank.mean(image, morphology.disk(3))
+    image = resize(image, image_size)
+    fd, hog_image = feature.hog(image, visualise=True)
+    return hog_image
+
 
 def pre_v1(image):
     image_size = (50, 50)
@@ -74,6 +94,10 @@ def preprocess(iraw, version=1, ft=None):
     version = int(version)
     if(version==1):
         iprocessed = pre_v1(iraw)
+    elif(version==2):
+        iprocessed = pre_v2(iraw)
+    elif(version==3):
+        iprocessed = pre_v3(iraw)
     else:
         raise Exception('Wrong version: ' + str(version))
     image_input = iprocessed.flatten()
@@ -206,13 +230,15 @@ def file_to_raw_symbols(fn, single_symbol=False):
 def get_custom_data(datadir, version):
     y = []
     X = []
+    Xhog = []
     processed_images = []
+    processed_hog_images = []
     original_images = []
 
     for name in glob.glob(datadir + '*.png'):
         symbol = name.split('_')[1].replace(".png","")
         ilabels, irawsymbols = file_to_raw_symbols(name, True)
-        iprocessed, image_input = preprocess(irawsymbols[0], version, None)
+        iprocessed, ihogprocessed, image_input, hog_input = preprocess(irawsymbols[0], version, None)
         processed_images.append(iprocessed)
         original_images.append(irawsymbols[0])
         X.append(image_input)

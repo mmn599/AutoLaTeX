@@ -68,9 +68,10 @@ def preprocess_image(iraw, ft=None, fthog=None):
     '''
     Converts images (grayed, squared symbol images) into data for learning model
     '''
-    image_size = (50, 50)
-    iprocessed = filters.rank.mean(iraw, morphology.disk(3))
-    iprocessed = resize(iraw, image_size)
+    image_size = (60, 60)
+    # iprocessed = filters.rank.mean(iraw, morphology.disk(3))
+    iprocessed = filters.gaussian(iraw, 1)
+    iprocessed = resize(iprocessed, image_size)
     return iprocessed
 
 
@@ -160,7 +161,7 @@ def seperate_symbols(overall_image):
     return ilabels, np.array(square_symbols)
 
 
-def preprocess_and_get_inputs(irawsymbols, ft, fthog):
+def preprocess_and_get_inputs(irawsymbols, ft=None, fthog=None):
     input_images = []
     input_hogs = []
     images_processed = []
@@ -209,6 +210,9 @@ def file_to_raw_symbols(fn, single_symbol=False):
      
 
 def get_custom_data(datadir):
+    '''
+    Returns input_images, input_hogs, symbols, images_processed, images_hog, images_raw_symbols
+    '''
     images_raw_symbols = []
     symbols = []
     for name in glob.glob(datadir + '*.png'):
@@ -218,8 +222,8 @@ def get_custom_data(datadir):
             raise Exception('More than one symbol found in training data!')
         images_raw_symbols.append(irawsymbols[0])
         symbols.append(symbol)
-    images_processed, images_hog, input_images, input_hogs = preprocess_and_get_inputs(irawsymbols)
-    return input_images, input_hogs, symbols, images_processed, images_hog, images_raw_symbols
+    input_images, input_hogs, images_processed, images_hog = preprocess_and_get_inputs(images_raw_symbols)
+    return input_images, input_hogs, images_processed, images_hog, symbols, images_raw_symbols
 
 
 FN_ILABELS = "current_ilabels"

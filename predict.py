@@ -217,7 +217,10 @@ def get_custom_data(datadir):
     symbols = []
     for name in glob.glob(datadir + '*.png'):
         symbol = name.split('_')[1].replace(".png","")
-        ilabels, irawsymbols = file_to_raw_symbols(name, True)
+        try:
+            ilabels, irawsymbols = file_to_raw_symbols(name, True)
+        except:
+            print(name) 
         if(len(irawsymbols)!=1):
             raise Exception('More than one symbol found in training data!')
         images_raw_symbols.append(irawsymbols[0])

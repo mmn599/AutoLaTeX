@@ -63,49 +63,15 @@ def find_average_size(images):
     n = np.ceil(np.mean(Ns))
     return (m, n)
 
-def pre_v3(image):
-    image_size = (50, 50)
-    image = resize(image, image_size)
-    fd, hog_image = feature.hog(image, visualise=True)
-    return hog_image
 
-
-def pre_v2(image):
-    image_size = (50, 50)
-    image = filters.rank.mean(image, morphology.disk(3))
-    image = resize(image, image_size)
-    fd, hog_image = feature.hog(image, visualise=True)
-    return hog_image
-
-
-def pre_v1(image):
-    image_size = (50, 50)
-    image = filters.rank.mean(image, morphology.disk(3))
-    image = resize(image, image_size)
-    return image
-
-
-def preprocess(iraw, version=1, ft=None):
+def preprocess_image(iraw, ft=None, fthog=None):
     '''
     Converts images (grayed, squared symbol images) into data for learning model
     '''
-    # image = morphology.erosion(image, morphology.square(5))
-    # image = filters.rank.median(image, morphology.square(3))
-    version = int(version)
-    if(version==1):
-        iprocessed = pre_v1(iraw)
-    elif(version==2):
-        iprocessed = pre_v2(iraw)
-    elif(version==3):
-        iprocessed = pre_v3(iraw)
-    else:
-        raise Exception('Wrong version: ' + str(version))
-    image_input = iprocessed.flatten()
-    if(len(image_input.shape)==1):
-        image_input = np.expand_dims(image_input, axis=0)
-    if(ft):
-        image_input = ft.transform(image_input)
-    return iprocessed, image_input
+    image_size = (50, 50)
+    iprocessed = filters.rank.mean(iraw, morphology.disk(3))
+    iprocessed = resize(iraw, image_size)
+    return iprocessed
 
 
 def find_symbol(image):
@@ -194,19 +160,39 @@ def seperate_symbols(overall_image):
     return ilabels, np.array(square_symbols)
 
 
-def predict(irawsymbols, clf, ft, version):
-    X = []
+def preprocess_and_get_inputs(irawsymbols, ft, fthog):
+    input_images = []
+    input_hogs = []
     images_processed = []
+    images_hog = []
+
     for iraw in irawsymbols:
-        iprocessed, image_input = preprocess(iraw, version, ft)
-        X.append(image_input)
+        iprocessed = preprocess_image(iraw)
+        input_image = iprocessed.flatten()
+        input_hog, ihog = feature.hog(iprocessed, visualise=True)
+
+        input_images.append(input_image)
+        input_hogs.append(input_hog)
         images_processed.append(iprocessed)
-    X = np.array(X)
-    X = np.squeeze(X)
-    if(len(X.shape)==1):
-        X = np.expand_dims(X, axis=0)
-    ypred = clf.predict(X)
-    return images_processed, X, ypred
+        images_hog.append(ihog)
+
+    input_images = np.array(input_images)
+    input_images = np.squeeze(input_images)
+    input_hogs = np.array(input_hogs)
+    input_hogs = np.squeeze(input_hogs)
+
+    if(ft):
+        input_images = ft.transform(input_image)
+    if(fthog):
+        input_hogs = fthog.transform(input_hog)
+
+    return input_images, input_hogs, images_processed, images_hog
+
+
+def predict(input_images, input_hogs, clf, clfhog, ft, fthog):
+    return "poop"
+    # ypred = clf.predict(X)
+    # return images_processed, X, ypred
 
 
 def prediction_to_latex(predictions):
@@ -218,57 +204,51 @@ def prediction_to_latex(predictions):
 
 def file_to_raw_symbols(fn, single_symbol=False):
     ioverall = io.imread(fn)
-    try:
-        ilabels, irawsymbols = seperate_symbols(ioverall)
-    except:
-        raise Exception(fn) 
-    if(single_symbol and len(irawsymbols) != 1):
-        raise Exception(fn)
+    ilabels, irawsymbols = seperate_symbols(ioverall)
     return ilabels, irawsymbols
      
 
-def get_custom_data(datadir, version):
-    y = []
-    X = []
-    processed_images = []
-    original_images = []
-
+def get_custom_data(datadir):
+    images_raw_symbols = []
+    symbols = []
     for name in glob.glob(datadir + '*.png'):
         symbol = name.split('_')[1].replace(".png","")
         ilabels, irawsymbols = file_to_raw_symbols(name, True)
-        iprocessed, ihogprocessed, image_input, hog_input = preprocess(irawsymbols[0], version, None)
-        processed_images.append(iprocessed)
-        original_images.append(irawsymbols[0])
-        X.append(image_input)
-        y.append(symbol)
+        if(len(irawsymbols)!=1):
+            raise Exception('More than one symbol found in training data!')
+        images_raw_symbols.append(irawsymbols[0])
+        symbols.append(symbol)
+    images_processed, images_hog, input_images, input_hogs = preprocess_and_get_inputs(irawsymbols)
+    return input_images, input_hogs, symbols, images_processed, images_hog, images_raw_symbols
 
-    X = np.array(X)
-    X = np.squeeze(X)
-        
-    return X, y, processed_images, original_images
 
 FN_ILABELS = "current_ilabels"
 FN_ISYMBOL = "current_symbol"
+DIRME = os.path.dirname(os.path.realpath(__file__))
+DIRTEMP = DIRME + "/" + "temp"
+DIRMODELS = DIRME + '/models/'
+FNCLF = DIRMODELS + 'Model' + '.p'
+FNTS = DIRMODELS + 'Ft' + '.p'
+CLF = joblib.load(FNCLF)
+FT = joblib.load(FNTS)
+FNCLFHOG = DIRMODELS + 'ModelHog' + '.p'
+FNFTHOG = DIRMODELS + 'FtHog' + '.p'
+CLFHOG = joblib.load(FNCLFHOG)
+FTHOG = joblib.load(FNFTHOG)
 
-def do_the_damn_thing(fnimage, version, count):
-    dirme = os.path.dirname(os.path.realpath(__file__))
-    dirtemp = dirme + "/" + "temp"
-    dirmodels = dirme + '/models/'
-    fnclf = dirmodels + 'Model' + str(version) + '.p'
-    fnts = dirmodels + 'Ts' + str(version) + '.p'
-    clf = joblib.load(fnclf)
-    ts = joblib.load(fnts)
 
+def do_the_damn_thing(fnimage, count):
     ilabels, irawsymbols = file_to_raw_symbols(fnimage)
-    images_processed, X, ypred = predict(irawsymbols, clf, ts, version=version)
+    images_processed, images_hog, input_images, input_hogs = preprocess_and_get_inputs(irawsymbols)
+    ypred = predict(input_images, input_hogs, CLF, CLFHOG, FT, FTHOG)
     latex = prediction_to_latex(ypred)
 
-    fn_ilabels = dirtemp + "/" + FN_ILABELS + count + ".png"
+    fn_ilabels = DIRTEMP + "/" + FN_ILABELS + count + ".png"
     plt.imsave(fn_ilabels, ilabels)
 
     fns_ips = []
     for i, iprocessedsymbol in enumerate(images_processed):
-        fn_ips = dirtemp + "/" + FN_ISYMBOL + count + "_" + str(i) + ".png"
+        fn_ips = DIRTEMP + "/" + FN_ISYMBOL + count + "_" + str(i) + ".png"
         plt.imsave(fn_ips, iprocessedsymbol, cmap="Greys_r")
         fns_ips.append(fn_ips)
 
@@ -277,10 +257,9 @@ def do_the_damn_thing(fnimage, version, count):
 
 if __name__ == "__main__":
     imagefn = sys.argv[1]
-    version = sys.argv[2]
-    count = sys.argv[3]
+    count = sys.argv[2]
 
-    latex, fn_ilabels, fns_ips, irawsymbols, images_processed = do_the_damn_thing(imagefn, version, count)
+    latex, fn_ilabels, fns_ips, irawsymbols, images_processed = do_the_damn_thing(imagefn, count)
     numsymbols = len(fns_ips)
 
     sys.stdout.write(latex)

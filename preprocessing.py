@@ -105,11 +105,11 @@ PROCESSING_FUNC = {
 }
 
 
-def preprocess(data, dtype):
-    if(dtype not in PROCESSING_FUNC):
-        raise Exception("Fuck you!")
-    func = PROCESSING_FUNC[dtype]
-    return func(data)
+# def preprocess(data, dtype):
+#     if(dtype not in PROCESSING_FUNC):
+#         raise Exception("Fuck you!")
+#     func = PROCESSING_FUNC[dtype]
+#     return func(data)
 
 
 def image_to_input(image):

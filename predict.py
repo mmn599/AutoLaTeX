@@ -183,17 +183,17 @@ def preprocess_and_get_inputs(irawsymbols, ft=None, fthog=None):
     input_hogs = np.squeeze(input_hogs)
 
     if(ft):
-        input_images = ft.transform(input_image)
+        input_images = ft.transform(input_images)
     if(fthog):
-        input_hogs = fthog.transform(input_hog)
+        input_hogs = fthog.transform(input_hogs)
 
     return input_images, input_hogs, images_processed, images_hog
 
 
 def predict(input_images, input_hogs, clf, clfhog, ft, fthog):
-    return "poop"
-    # ypred = clf.predict(X)
-    # return images_processed, X, ypred
+    ypred = clf.predict(input_images)
+    ypredhog = clfhog.predict(input_hogs)
+    return ypredhog
 
 
 def prediction_to_latex(predictions):
@@ -243,7 +243,7 @@ FTHOG = joblib.load(FNFTHOG)
 
 def do_the_damn_thing(fnimage, count):
     ilabels, irawsymbols = file_to_raw_symbols(fnimage)
-    images_processed, images_hog, input_images, input_hogs = preprocess_and_get_inputs(irawsymbols)
+    input_images, input_hogs, images_processed, images_hog = preprocess_and_get_inputs(irawsymbols, FT, FTHOG)
     ypred = predict(input_images, input_hogs, CLF, CLFHOG, FT, FTHOG)
     latex = prediction_to_latex(ypred)
 

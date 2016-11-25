@@ -14,7 +14,6 @@ from matplotlib import pyplot as plt
 import os
 warnings.filterwarnings("ignore")
 
-DEFAULT_IMAGE_SIZE = (36,36)
 LATEX_BOOK = {
     'a' : 'a',
     'b' : 'b',
@@ -64,14 +63,15 @@ def find_average_size(images):
     return (m, n)
 
 
+DEFAULT_IMAGE_SIZE = (36,36)
 def preprocess_image(iraw, ft=None, fthog=None):
     '''
     Converts images (grayed, squared symbol images) into data for learning model
     '''
-    image_size = (60, 60)
-    # iprocessed = filters.rank.mean(iraw, morphology.disk(3))
-    iprocessed = filters.gaussian(iraw, 1)
-    iprocessed = resize(iprocessed, image_size)
+    iprocessed = iraw.copy()
+    # iprocessed = filters.rank.mean(iprocessed, morphology.disk(5))
+    # iprocessed = filters.gaussian(iraw, 2)
+    iprocessed = resize(iprocessed, DEFAULT_IMAGE_SIZE)
     return iprocessed
 
 

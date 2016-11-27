@@ -1,15 +1,14 @@
 import sys
 from skimage import io
-from sklearn.externals import joblib
-from skimage.transform import resize
 from skimage import morphology
 from skimage import color
 import numpy as np
 import warnings
-from skimage import filters
+import skimage
 import glob
 from skimage import measure
 from skimage import feature
+from sklearn.externals import joblib
 from matplotlib import pyplot as plt
 import os
 warnings.filterwarnings("ignore")
@@ -63,16 +62,19 @@ def find_average_size(images):
     return (m, n)
 
 
-DEFAULT_IMAGE_SIZE = (50,50)
-def preprocess_image(iraw, ft=None, fthog=None):
-    '''
-    Converts images (grayed, squared symbol images) into data for learning model
-    '''
-    iprocessed = iraw.copy()
-    # iprocessed = filters.rank.mean(iprocessed, morphology.disk(5))
-    # iprocessed = filters.gaussian(iraw, 2)
-    iprocessed = resize(iprocessed, DEFAULT_IMAGE_SIZE)
-    return iprocessed
+def myresize(images, image_size):
+    inp_processedz = np.zeros((len(images), image_size[0] * image_size[1]))
+    iprocessedz = np.zeros((len(images), image_size[0], image_size[1]))
+    for i, image in enumerate(images):
+        image = image.squeeze()
+        image = skimage.filters.gaussian(image, 1)
+        image = skimage.transform.resize(image, image_size)
+        iprocessedz[i, :, :] = image
+        inp_processedz[i, :] = image.flatten()
+    return inp_processedz, iprocessedz
+
+
+DEFAULT_IMAGE_SIZE = (40,40)
 
 
 def find_symbol(image):
@@ -161,39 +163,20 @@ def seperate_symbols(overall_image):
     return ilabels, np.array(square_symbols)
 
 
-def preprocess_and_get_inputs(irawsymbols, ft=None, fthog=None):
-    input_images = []
-    input_hogs = []
-    images_processed = []
+def preprocess_images(images):
+    image_size = (40,40)
+    X, Ximages = myresize(images, image_size)
+
+    shape = len(skimage.feature.hog(images[0]))
+    Xt = np.zeros((len(images), shape))
     images_hog = []
-
-    for iraw in irawsymbols:
-        iprocessed = preprocess_image(iraw)
-        input_image = iprocessed.flatten()
-        input_hog, ihog = feature.hog(iprocessed, visualise=True)
-
-        input_images.append(input_image)
-        input_hogs.append(input_hog)
-        images_processed.append(iprocessed)
+    for i, image in enumerate(images):
+        Xt[i, :], ihog = skimage.feature.hog(image, visualise=True)
         images_hog.append(ihog)
 
-    input_images = np.array(input_images)
-    input_images = np.squeeze(input_images)
-    input_hogs = np.array(input_hogs)
-    input_hogs = np.squeeze(input_hogs)
+    images_hog = np.array(images_hog)
 
-    if(ft):
-        input_images = ft.transform(input_images)
-    if(fthog):
-        input_hogs = fthog.transform(input_hogs)
-
-    return input_images, input_hogs, images_processed, images_hog
-
-
-def predict(input_images, input_hogs, clf, clfhog, ft, fthog):
-    ypred = clf.predict(input_images)
-    ypredhog = clfhog.predict(input_hogs)
-    return ypredhog
+    return Xt, images_hog
 
 
 def prediction_to_latex(predictions):
@@ -229,33 +212,21 @@ def get_custom_data(datadir):
     return input_images, input_hogs, images_processed, images_hog, symbols, images_raw_symbols
 
 
-FN_ILABELS = "current_ilabels"
-FN_ISYMBOL = "current_symbol"
-DIRME = os.path.dirname(os.path.realpath(__file__))
-DIRTEMP = DIRME + "/" + "temp"
-DIRMODELS = DIRME + '/models/'
-FNCLF = DIRMODELS + 'Model' + '.p'
-FNTS = DIRMODELS + 'Ft' + '.p'
-CLF = joblib.load(FNCLF)
-FT = joblib.load(FNTS)
-FNCLFHOG = DIRMODELS + 'ModelHog' + '.p'
-FNFTHOG = DIRMODELS + 'FtHog' + '.p'
-CLFHOG = joblib.load(FNCLFHOG)
-FTHOG = joblib.load(FNFTHOG)
+DIRTEMP = "C:\\Users\\mmnor\\Projects\\autolatex\\temp"
 
-
-def do_the_damn_thing(fnimage, count):
+def do_the_damn_thing(fnimage, fnmodel, count):
     ilabels, irawsymbols = file_to_raw_symbols(fnimage)
-    input_images, input_hogs, images_processed, images_hog = preprocess_and_get_inputs(irawsymbols, FT, FTHOG)
-    ypred = predict(input_images, input_hogs, CLF, CLFHOG, FT, FTHOG)
+    Xt, images_hog = preprocess_images(irawsymbols)
+    model = joblib.load(fnmodel)
+    ypred = model.predict(Xt)
     latex = prediction_to_latex(ypred)
 
-    fn_ilabels = DIRTEMP + "/" + FN_ILABELS + count + ".png"
+    fn_ilabels = DIRTEMP + "/" + "current_ilabels" + count + ".png"
     plt.imsave(fn_ilabels, ilabels)
 
     fns_ips = []
     for i, iprocessedsymbol in enumerate(images_processed):
-        fn_ips = DIRTEMP + "/" + FN_ISYMBOL + count + "_" + str(i) + ".png"
+        fn_ips = DIRTEMP + "/" + "current_symbol" + count + "_" + str(i) + ".png"
         plt.imsave(fn_ips, iprocessedsymbol, cmap="Greys_r")
         fns_ips.append(fn_ips)
 
@@ -266,7 +237,9 @@ if __name__ == "__main__":
     imagefn = sys.argv[1]
     count = sys.argv[2]
 
-    latex, fn_ilabels, fns_ips, irawsymbols, images_processed = do_the_damn_thing(imagefn, count)
+    fnmodel = "models/Pipe.p"
+    
+    latex, fn_ilabels, fns_ips, irawsymbols, images_processed = do_the_damn_thing(imagefn, fnmodel, count)
     numsymbols = len(fns_ips)
 
     sys.stdout.write(latex)

@@ -165,18 +165,20 @@ def seperate_symbols(overall_image):
 
 def preprocess_images(images):
     image_size = (40,40)
-    X, Ximages = myresize(images, image_size)
+    X, images = myresize(images, image_size)
+    print(images.shape)
 
-    shape = len(skimage.feature.hog(images[0]))
-    Xt = np.zeros((len(images), shape))
+    inputs_hog = []
     images_hog = []
-    for i, image in enumerate(images):
-        Xt[i, :], ihog = skimage.feature.hog(image, visualise=True)
+    for image in images:
+        inputhog, ihog = skimage.feature.hog(image, visualise=True)
+        inputs_hog.append(inputhog)
         images_hog.append(ihog)
 
+    inputs_hog = np.array(inputs_hog)
     images_hog = np.array(images_hog)
 
-    return Xt, images_hog
+    return inputs_hog, images_hog
 
 
 def prediction_to_latex(predictions):
@@ -225,12 +227,12 @@ def do_the_damn_thing(fnimage, fnmodel, count):
     plt.imsave(fn_ilabels, ilabels)
 
     fns_ips = []
-    for i, iprocessedsymbol in enumerate(images_processed):
+    for i, iprocessedsymbol in enumerate(images_hog):
         fn_ips = DIRTEMP + "/" + "current_symbol" + count + "_" + str(i) + ".png"
         plt.imsave(fn_ips, iprocessedsymbol, cmap="Greys_r")
         fns_ips.append(fn_ips)
 
-    return latex, fn_ilabels, fns_ips, irawsymbols, images_processed, 
+    return latex, fn_ilabels, fns_ips, irawsymbols, images_hog
 
 
 if __name__ == "__main__":
@@ -238,7 +240,7 @@ if __name__ == "__main__":
     count = sys.argv[2]
 
     fnmodel = "models/Pipe.p"
-    
+
     latex, fn_ilabels, fns_ips, irawsymbols, images_processed = do_the_damn_thing(imagefn, fnmodel, count)
     numsymbols = len(fns_ips)
 

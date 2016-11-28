@@ -166,7 +166,6 @@ def seperate_symbols(overall_image):
 def preprocess_images(images):
     image_size = (40,40)
     X, images = myresize(images, image_size)
-    print(images.shape)
 
     inputs_hog = []
     images_hog = []
@@ -239,7 +238,7 @@ if __name__ == "__main__":
     imagefn = sys.argv[1]
     count = sys.argv[2]
 
-    fnmodel = "models/Pipe.p"
+    fnmodel = "C:\\Users\\mmnor\\Projects\\autolatex\\models\\Pipe.p"
 
     latex, fn_ilabels, fns_ips, irawsymbols, images_processed = do_the_damn_thing(imagefn, fnmodel, count)
     numsymbols = len(fns_ips)
